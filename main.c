@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <math.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -147,7 +148,7 @@ void faststat_timer_handler(int signum, siginfo_t *si, void *uc)
     env->cpu_last = cpu;
 }
 
-void faststat_exec_timer(struct faststat_env *env)
+void faststat_exec_timer(struct faststat_env *env, double interval)
 {
     int signal_no = SIGRTMIN;
 
@@ -173,8 +174,8 @@ void faststat_exec_timer(struct faststat_env *env)
     struct itimerspec itval;
     itval.it_value.tv_sec = 0;
     itval.it_value.tv_nsec = 1;  // non-zero value is necessary
-    itval.it_interval.tv_sec = 0;
-    itval.it_interval.tv_nsec = 500000000;  // 0.5sec
+    itval.it_interval.tv_sec = floor(interval);
+    itval.it_interval.tv_nsec = (interval - floor(interval)) * 1000000000;
     if (timer_settime(tid, 0, &itval, NULL) < 0) {
         perror("timser_settime");
         exit(1);
@@ -183,10 +184,22 @@ void faststat_exec_timer(struct faststat_env *env)
 
 int main(int argc, char **argv)
 {
+    int opt;
+    double interval = 0.5;
+    while ((opt = getopt(argc, argv, "t:")) != -1) {
+        switch (opt) {
+        case 't':
+            interval = atof(optarg);
+            break;
+        default:
+            failwith("Usage: %s [-t nsecs]\n", argv[0]);
+        }
+    }
+
     struct faststat_env env;
     faststat_init(&env);
     print_title(env.out);
-    faststat_exec_timer(&env);
+    faststat_exec_timer(&env, interval);
 
     while (1) {
         pause();
