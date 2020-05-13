@@ -11,7 +11,7 @@
 #include <nvml.h>
 
 struct cpu_stat {
-    unsigned long user, nice, sys, idle, iowait, irq, softirq;
+    unsigned long user, nice, sys, idle, iowait, irq, softirq, steal;
 };
 struct nvml_stat {
     unsigned int temp, power, usage;
@@ -37,10 +37,10 @@ void read_cpu_stat(struct cpu_stat *cpu)
     FILE *fp = fopen("/proc/stat", "r");
     if (!fp)
         failwith("Can't open /proc/stat");
-    int n =
-        fscanf(fp, "cpu  %lu %lu %lu %lu %lu %lu %lu", &cpu->user, &cpu->nice,
-               &cpu->sys, &cpu->idle, &cpu->iowait, &cpu->irq, &cpu->softirq);
-    if (n == EOF || n != 7)
+    int n = fscanf(fp, "cpu  %lu %lu %lu %lu %lu %lu %lu %lu", &cpu->user,
+                   &cpu->nice, &cpu->sys, &cpu->idle, &cpu->iowait, &cpu->irq,
+                   &cpu->softirq, &cpu->steal);
+    if (n == EOF || n != 8)
         failwith("Unknown format of /proc/stat");
     fclose(fp);
 }
@@ -49,8 +49,8 @@ void print_title(FILE *out)
 {
     fprintf(out,
             "time,cpu.user,cpu.nice,cpu.sys,cpu.idle,cpu.iowait,cpu.irq,cpu."
-            "softirq,nvml.temp,nvml.power,nvml.usage,nvml.mem.used,nvml.mem."
-            "free,nvml.mem.total\n");
+            "softirq,cpu.steal,nvml.temp,nvml.power,nvml.usage,nvml.mem.used,"
+            "nvml.mem.free,nvml.mem.total\n");
 }
 
 void print_timestamp(FILE *out)
@@ -72,8 +72,10 @@ void print_cpu_stat(FILE *out, const struct cpu_stat *const current,
                   idle = current->idle - last->idle,
                   iowait = current->iowait - last->iowait,
                   irq = current->irq - last->irq,
-                  softirq = current->softirq - last->softirq;
-    unsigned long total = user + nice + sys + idle + iowait + irq + softirq;
+                  softirq = current->softirq - last->softirq,
+                  steal = current->steal - last->steal;
+    unsigned long total =
+        user + nice + sys + idle + iowait + irq + softirq + steal;
 
     if (total == 0)
         return;
@@ -86,6 +88,7 @@ void print_cpu_stat(FILE *out, const struct cpu_stat *const current,
     FPRINTF(iowait);
     FPRINTF(irq);
     FPRINTF(softirq);
+    FPRINTF(steal);
 #undef FPRINTF
 }
 
