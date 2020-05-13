@@ -1,8 +1,12 @@
+#include <errno.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <nvml.h>
 
@@ -12,6 +16,11 @@ struct cpu_stat {
 struct nvml_stat {
     unsigned int temp, power, usage;
     unsigned long long memory_used, memory_free, memory_total;
+};
+struct faststat_env {
+    FILE *out;
+    nvmlDevice_t nvml_dev;
+    struct cpu_stat cpu_last;
 };
 
 _Noreturn void failwith(const char *msg, ...)
@@ -106,32 +115,78 @@ void print_nvml_stat(FILE *out, struct nvml_stat *nvml)
     fprintf(out, ",%.02f", (float)(nvml->memory_total) / 1024 / 1024);
 }
 
-int main(int argc, char **argv)
+void faststat_init(struct faststat_env *env)
 {
-    FILE *out = stdout;
-    struct timespec nanosleep_ts = {0, 500000000};  // 0.5sec
-
-    struct cpu_stat current, last;
+    env->out = stdout;
 
     const unsigned int gpu_id = 0;
-    struct nvml_stat nvml;
     nvmlInit();
-    nvmlDevice_t nvml_dev;
-    nvmlDeviceGetHandleByIndex(gpu_id, &nvml_dev);
+    nvmlDeviceGetHandleByIndex(gpu_id, &env->nvml_dev);
 
-    print_title(out);
+    memset(&env->cpu_last, 0, sizeof(env->cpu_last));
+}
+
+void faststat_timer_handler(int signum, siginfo_t *si, void *uc)
+{
+    struct faststat_env *env = si->si_value.sival_ptr;
+    struct cpu_stat cpu;
+    struct nvml_stat nvml;
+
+    read_cpu_stat(&cpu);
+    read_nvml_stat(&nvml, env->nvml_dev);
+
+    print_timestamp(env->out);
+    print_cpu_stat(env->out, &cpu, &env->cpu_last);
+    print_nvml_stat(env->out, &nvml);
+    puts("");
+    fflush(env->out);
+
+    env->cpu_last = cpu;
+}
+
+void faststat_exec_timer(struct faststat_env *env)
+{
+    int signal_no = SIGRTMIN;
+
+    struct sigaction act;
+    act.sa_sigaction = faststat_timer_handler;
+    act.sa_flags = SA_SIGINFO | SA_RESTART;
+    if (sigaction(signal_no, &act, NULL) < 0) {
+        perror("sigaction()");
+        exit(1);
+    }
+
+    timer_t tid;
+
+    struct sigevent sev;
+    sev.sigev_notify = SIGEV_SIGNAL;
+    sev.sigev_signo = signal_no;
+    sev.sigev_value.sival_ptr = env;
+    if (timer_create(CLOCK_REALTIME, &sev, &tid)) {
+        perror("timer_create");
+        exit(1);
+    }
+
+    struct itimerspec itval;
+    itval.it_value.tv_sec = 0;
+    itval.it_value.tv_nsec = 1;  // non-zero value is necessary
+    itval.it_interval.tv_sec = 0;
+    itval.it_interval.tv_nsec = 500000000;  // 0.5sec
+    if (timer_settime(tid, 0, &itval, NULL) < 0) {
+        perror("timser_settime");
+        exit(1);
+    }
+}
+
+int main(int argc, char **argv)
+{
+    struct faststat_env env;
+    faststat_init(&env);
+    print_title(env.out);
+    faststat_exec_timer(&env);
+
     while (1) {
-        last = current;
-        read_cpu_stat(&current);
-        read_nvml_stat(&nvml, nvml_dev);
-
-        print_timestamp(out);
-        print_cpu_stat(out, &current, &last);
-        print_nvml_stat(out, &nvml);
-        puts("");
-        fflush(out);
-
-        nanosleep(&nanosleep_ts, NULL);
+        pause();
     }
 
     return 0;
