@@ -141,7 +141,7 @@ void faststat_timer_handler(int signum, siginfo_t *si, void *uc)
     print_timestamp(env->out);
     print_cpu_stat(env->out, &cpu, &env->cpu_last);
     print_nvml_stat(env->out, &nvml);
-    puts("");
+    fputs("\n", env->out);
     fflush(env->out);
 
     env->cpu_last = cpu;
