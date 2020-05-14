@@ -85,53 +85,7 @@ static void print_title(faststat_env *env)
             print_punctuation(env);
 
         FASTSTAT_FIELD field = env->fields[i];
-        switch (field) {
-        case TIME:
-            fputs("time", env->out);
-            break;
-        case CPU_USER:
-            fputs("cpu.user", env->out);
-            break;
-        case CPU_NICE:
-            fputs("cpu.nice", env->out);
-            break;
-        case CPU_SYS:
-            fputs("cpu.sys", env->out);
-            break;
-        case CPU_IDLE:
-            fputs("cpu.idle", env->out);
-            break;
-        case CPU_IOWAIT:
-            fputs("cpu.iowait", env->out);
-            break;
-        case CPU_IRQ:
-            fputs("cpu.irq", env->out);
-            break;
-        case CPU_SOFTIRQ:
-            fputs("cpu.softirq", env->out);
-            break;
-        case CPU_STEAL:
-            fputs("cpu.steal", env->out);
-            break;
-        case NVML_TEMP:
-            fputs("nvml.temp", env->out);
-            break;
-        case NVML_POWER:
-            fputs("nvml.power", env->out);
-            break;
-        case NVML_USAGE:
-            fputs("nvml.usage", env->out);
-            break;
-        case NVML_MEM_USED:
-            fputs("nvml.mem.used", env->out);
-            break;
-        case NVML_MEM_FREE:
-            fputs("nvml.mem.free", env->out);
-            break;
-        case NVML_MEM_TOTAL:
-            fputs("nvml.mem.total", env->out);
-            break;
-        }
+        fputs(field2str(field), env->out);
     }
     fputs("\n", env->out);
 }
@@ -300,4 +254,78 @@ void faststat_emit_line(faststat_env *env)
     read_field_nvml(env);
     print_line(env);
     env->nlines++;
+}
+
+const char *field2str(FASTSTAT_FIELD f)
+{
+    switch (f) {
+    case TIME:
+        return "time";
+    case CPU_USER:
+        return "cpu.user";
+    case CPU_NICE:
+        return "cpu.nice";
+    case CPU_SYS:
+        return "cpu.sys";
+    case CPU_IDLE:
+        return "cpu.idle";
+    case CPU_IOWAIT:
+        return "cpu.iowait";
+    case CPU_IRQ:
+        return "cpu.irq";
+    case CPU_SOFTIRQ:
+        return "cpu.softirq";
+    case CPU_STEAL:
+        return "cpu.steal";
+    case NVML_TEMP:
+        return "nvml.temp";
+    case NVML_POWER:
+        return "nvml.power";
+    case NVML_USAGE:
+        return "nvml.usage";
+    case NVML_MEM_USED:
+        return "nvml.mem.used";
+    case NVML_MEM_FREE:
+        return "nvml.mem.free";
+    case NVML_MEM_TOTAL:
+        return "nvml.mem.total";
+    default:
+        assert(0);
+    }
+}
+
+FASTSTAT_FIELD str2field(const char *s)
+{
+    if (strcmp(s, "time") == 0)
+        return TIME;
+    if (strcmp(s, "cpu.user") == 0)
+        return CPU_USER;
+    if (strcmp(s, "cpu.nice") == 0)
+        return CPU_NICE;
+    if (strcmp(s, "cpu.sys") == 0)
+        return CPU_SYS;
+    if (strcmp(s, "cpu.idle") == 0)
+        return CPU_IDLE;
+    if (strcmp(s, "cpu.iowait") == 0)
+        return CPU_IOWAIT;
+    if (strcmp(s, "cpu.irq") == 0)
+        return CPU_IRQ;
+    if (strcmp(s, "cpu.softirq") == 0)
+        return CPU_SOFTIRQ;
+    if (strcmp(s, "cpu.steal") == 0)
+        return CPU_STEAL;
+    if (strcmp(s, "nvml.temp") == 0)
+        return NVML_TEMP;
+    if (strcmp(s, "nvml.power") == 0)
+        return NVML_POWER;
+    if (strcmp(s, "nvml.usage") == 0)
+        return NVML_USAGE;
+    if (strcmp(s, "nvml.mem.used") == 0)
+        return NVML_MEM_USED;
+    if (strcmp(s, "nvml.mem.free") == 0)
+        return NVML_MEM_FREE;
+    if (strcmp(s, "nvml.mem.total") == 0)
+        return NVML_MEM_TOTAL;
+
+    return UNKNOWN;
 }

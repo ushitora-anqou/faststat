@@ -21,10 +21,15 @@ typedef enum {
     NVML_MEM_USED,
     NVML_MEM_FREE,
     NVML_MEM_TOTAL,
+
+    UNKNOWN,  // MUST be the last field.
+    NUM_OF_FIELDS = UNKNOWN,
 } FASTSTAT_FIELD;
 
 faststat_env *faststat_new_env(int nfields, FASTSTAT_FIELD fields[]);
 void faststat_delete_env(faststat_env *env);
 void faststat_emit_line(faststat_env *env);
+FASTSTAT_FIELD str2field(const char *s);
+const char *field2str(FASTSTAT_FIELD f);
 
 #endif

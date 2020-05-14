@@ -1,12 +1,14 @@
 #include "faststat.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <math.h>
-#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <signal.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -51,6 +53,12 @@ static void exec_timer(struct faststat_env *env, double interval)
     }
 }
 
+static _Noreturn void print_usage_to_exit(char *argv0)
+{
+    fprintf(stderr, "Usage: %s [-t nsecs] [fields...]\n", argv0);
+    exit(1);
+}
+
 int main(int argc, char **argv)
 {
     int opt;
@@ -61,17 +69,37 @@ int main(int argc, char **argv)
             interval = atof(optarg);
             break;
         default:
-            fprintf(stderr, "Usage: %s [-t nsecs]\n", argv[0]);
-            exit(1);
+            print_usage_to_exit(argv[0]);
         }
     }
 
-    FASTSTAT_FIELD fields[] = {
-        TIME,       CPU_USER,   CPU_NICE,      CPU_SYS,       CPU_IDLE,
-        CPU_IOWAIT, CPU_IRQ,    CPU_SOFTIRQ,   CPU_STEAL,     NVML_TEMP,
-        NVML_POWER, NVML_USAGE, NVML_MEM_USED, NVML_MEM_FREE, NVML_MEM_TOTAL,
-    };
-    faststat_env *env = faststat_new_env(15, fields);
+    // Parse command-line positional arguments as fields.
+    FASTSTAT_FIELD *fields = NULL;
+    int nfields = 0;
+    if (argc - optind == 0) {
+        // Passing no arguments means to print all fields.
+        nfields = NUM_OF_FIELDS;
+        fields = malloc(sizeof(FASTSTAT_FIELD) * nfields);
+        for (int i = 0; i < NUM_OF_FIELDS; i++)
+            fields[i] = i;
+    }
+    else {
+        nfields = argc - optind;
+        fields = malloc(sizeof(FASTSTAT_FIELD) * nfields);
+        for (int i = 0; i < nfields; i++) {
+            char *s = argv[optind + i];
+            FASTSTAT_FIELD f = str2field(s);
+            if (f == UNKNOWN) {
+                fprintf(stderr, "Invalid field: %s\n", s);
+                print_usage_to_exit(argv[0]);
+            }
+            fields[i] = f;
+        }
+    }
+    assert(fields != NULL && nfields != 0);
+
+    faststat_env *env = faststat_new_env(nfields, fields);
+    free(fields);
 
     exec_timer(env, interval);
     while (1) {
