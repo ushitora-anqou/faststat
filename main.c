@@ -17,7 +17,7 @@ static void timer_handler(int signum, siginfo_t *si, void *uc)
     faststat_emit_line(env);
 }
 
-void exec_timer(struct faststat_env *env, double interval)
+static void exec_timer(struct faststat_env *env, double interval)
 {
     int signal_no = SIGRTMIN;
 
@@ -66,7 +66,12 @@ int main(int argc, char **argv)
         }
     }
 
-    faststat_env *env = faststat_new_env();
+    FASTSTAT_FIELD fields[] = {
+        TIME,       CPU_USER,   CPU_NICE,      CPU_SYS,       CPU_IDLE,
+        CPU_IOWAIT, CPU_IRQ,    CPU_SOFTIRQ,   CPU_STEAL,     NVML_TEMP,
+        NVML_POWER, NVML_USAGE, NVML_MEM_USED, NVML_MEM_FREE, NVML_MEM_TOTAL,
+    };
+    faststat_env *env = faststat_new_env(15, fields);
 
     exec_timer(env, interval);
     while (1) {

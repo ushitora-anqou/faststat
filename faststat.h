@@ -3,7 +3,27 @@
 
 typedef struct faststat_env faststat_env;
 
-faststat_env *faststat_new_env(void);
+typedef enum {
+    TIME,
+
+    CPU_USER,
+    CPU_NICE,
+    CPU_SYS,
+    CPU_IDLE,
+    CPU_IOWAIT,
+    CPU_IRQ,
+    CPU_SOFTIRQ,
+    CPU_STEAL,
+
+    NVML_TEMP,
+    NVML_POWER,
+    NVML_USAGE,
+    NVML_MEM_USED,
+    NVML_MEM_FREE,
+    NVML_MEM_TOTAL,
+} FASTSTAT_FIELD;
+
+faststat_env *faststat_new_env(int nfields, FASTSTAT_FIELD fields[]);
 void faststat_delete_env(faststat_env *env);
 void faststat_emit_line(faststat_env *env);
 
