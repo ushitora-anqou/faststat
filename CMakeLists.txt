@@ -20,7 +20,7 @@ set(CMAKE_C_FLAGS "")
 set(CMAKE_C_FLAGS_DEBUG "")
 set(CMAKE_C_FLAGS_RELEASE "")
 
-add_executable(faststat main.c)
+add_executable(faststat main.c faststat.c)
 target_compile_options(faststat PUBLIC "$<$<CONFIG:DEBUG>:${FASTSTAT_CFLAGS_DEBUG}>")
 target_compile_options(faststat PUBLIC "$<$<CONFIG:RELEASE>:${FASTSTAT_CFLAGS_RELEASE}>")
 target_link_libraries(faststat m rt CUDA::nvml)
