@@ -1,6 +1,7 @@
 #include "faststat.h"
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -122,14 +123,27 @@ static void read_field_cpu(faststat_env *env)
            steal = current.steal - last->steal;
     double total = user + nice + sys + idle + iowait + irq + softirq + steal;
 
-    env->cpu.user = user / total * 100;
-    env->cpu.nice = nice / total * 100;
-    env->cpu.sys = sys / total * 100;
-    env->cpu.idle = idle / total * 100;
-    env->cpu.iowait = iowait / total * 100;
-    env->cpu.irq = irq / total * 100;
-    env->cpu.softirq = softirq / total * 100;
-    env->cpu.steal = steal / total * 100;
+    if (total < DBL_EPSILON) {
+        env->cpu.user = 0;
+        env->cpu.nice = 0;
+        env->cpu.sys = 0;
+        env->cpu.idle = 0;
+        env->cpu.iowait = 0;
+        env->cpu.irq = 0;
+        env->cpu.softirq = 0;
+        env->cpu.steal = 0;
+    }
+    else {
+        env->cpu.user = user / total * 100;
+        env->cpu.nice = nice / total * 100;
+        env->cpu.sys = sys / total * 100;
+        env->cpu.idle = idle / total * 100;
+        env->cpu.iowait = iowait / total * 100;
+        env->cpu.irq = irq / total * 100;
+        env->cpu.softirq = softirq / total * 100;
+        env->cpu.steal = steal / total * 100;
+    }
+
     *last = current;
 }
 
