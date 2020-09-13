@@ -15,6 +15,16 @@ typedef enum {
     CPU_SOFTIRQ,
     CPU_STEAL,
 
+    MEM_TOTAL,
+    MEM_USED,
+    MEM_FREE,
+    MEM_SHARED,
+    MEM_BUFF_CACHE,
+    MEM_AVAILABLE,
+    MEM_SWAP_TOTAL,
+    MEM_SWAP_USED,
+    MEM_SWAP_FREE,
+
     NVML_TEMP,
     NVML_POWER,
     NVML_USAGE,

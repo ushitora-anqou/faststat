@@ -16,6 +16,10 @@
 struct cpu_stat {
     unsigned long user, nice, sys, idle, iowait, irq, softirq, steal;
 };
+struct mem_stat {
+    unsigned long total, used, free, shared, buff_cache, available, swap_total,
+        swap_used, swap_free;
+};
 struct nvml_stat {
     unsigned int temp, power, usage;
     unsigned long long memory_used, memory_free, memory_total;
@@ -31,6 +35,10 @@ struct faststat_env {
         double user, nice, sys, idle, iowait, irq, softirq, steal;
         struct cpu_stat last;
     } cpu;
+
+    struct {
+        struct mem_stat current;
+    } mem;
 
     struct {
         nvmlDevice_t dev;
@@ -162,6 +170,39 @@ DEF_PRINT_FIELD_CPU(softirq)
 DEF_PRINT_FIELD_CPU(steal)
 #undef DEF_PRINT_FIELD_CPU
 
+static void read_field_mem(faststat_env *env)
+{
+    FILE *fp = popen("free", "r");
+    if (!fp)
+        failwith("Can't execute command free");
+
+    struct mem_stat *c = &env->mem.current;
+    int n = fscanf(fp,
+                   " total used free shared buff/cache available Mem: %lu %lu "
+                   "%lu %lu %lu %lu Swap: %lu %lu %lu",
+                   &c->total, &c->used, &c->free, &c->shared, &c->buff_cache,
+                   &c->available, &c->swap_total, &c->swap_used, &c->swap_free);
+    if (n == EOF || n != 9)
+        failwith("Unknown format of free command");
+    pclose(fp);
+}
+
+#define DEF_PRINT_FIELD_MEM(name)                         \
+    static void print_field_mem_##name(faststat_env *env) \
+    {                                                     \
+        fprintf(env->out, "%lu", env->mem.current.name);  \
+    }
+DEF_PRINT_FIELD_MEM(total)
+DEF_PRINT_FIELD_MEM(used)
+DEF_PRINT_FIELD_MEM(free)
+DEF_PRINT_FIELD_MEM(shared)
+DEF_PRINT_FIELD_MEM(buff_cache)
+DEF_PRINT_FIELD_MEM(available)
+DEF_PRINT_FIELD_MEM(swap_total)
+DEF_PRINT_FIELD_MEM(swap_used)
+DEF_PRINT_FIELD_MEM(swap_free)
+#undef DEF_PRINT_FIELD_MEM
+
 static void read_field_nvml(faststat_env *env)
 {
     nvmlDeviceGetTemperature(env->nvml.dev, NVML_TEMPERATURE_GPU,
@@ -241,6 +282,21 @@ static void print_line(faststat_env *env)
             CASE_CPU(STEAL, steal)
 #undef CASE_CPU
 
+#define CASE_MEM(capital_name, name) \
+    case MEM_##capital_name:         \
+        print_field_mem_##name(env); \
+        break;
+            CASE_MEM(TOTAL, total);
+            CASE_MEM(USED, used);
+            CASE_MEM(FREE, free);
+            CASE_MEM(SHARED, shared);
+            CASE_MEM(BUFF_CACHE, buff_cache);
+            CASE_MEM(AVAILABLE, available);
+            CASE_MEM(SWAP_TOTAL, swap_total);
+            CASE_MEM(SWAP_USED, swap_used);
+            CASE_MEM(SWAP_FREE, swap_free);
+#undef CASE_MEM
+
 #define CASE_NVML(capital_name, name) \
     case NVML_##capital_name:         \
         print_field_nvml_##name(env); \
@@ -265,6 +321,7 @@ static void print_line(faststat_env *env)
 void faststat_emit_line(faststat_env *env)
 {
     read_field_cpu(env);
+    read_field_mem(env);
     read_field_nvml(env);
     print_line(env);
     env->nlines++;
@@ -291,6 +348,26 @@ const char *field2str(FASTSTAT_FIELD f)
         return "cpu.softirq";
     case CPU_STEAL:
         return "cpu.steal";
+
+    case MEM_TOTAL:
+        return "mem.total";
+    case MEM_USED:
+        return "mem.used";
+    case MEM_FREE:
+        return "mem.free";
+    case MEM_SHARED:
+        return "mem.shared";
+    case MEM_BUFF_CACHE:
+        return "mem.buff_cache";
+    case MEM_AVAILABLE:
+        return "mem.available";
+    case MEM_SWAP_TOTAL:
+        return "mem.swap.total";
+    case MEM_SWAP_USED:
+        return "mem.swap.used";
+    case MEM_SWAP_FREE:
+        return "mem.swap.free";
+
     case NVML_TEMP:
         return "nvml.temp";
     case NVML_POWER:
@@ -328,6 +405,28 @@ FASTSTAT_FIELD str2field(const char *s)
         return CPU_SOFTIRQ;
     if (strcmp(s, "cpu.steal") == 0)
         return CPU_STEAL;
+
+    if (strcmp(s, "mem.total") == 0)
+        return MEM_TOTAL;
+    if (strcmp(s, "mem.used") == 0)
+        return MEM_USED;
+    if (strcmp(s, "mem.free") == 0)
+        return MEM_FREE;
+    if (strcmp(s, "mem.shared") == 0)
+        return MEM_SHARED;
+    if (strcmp(s, "mem.buff_cache") == 0)
+        return MEM_BUFF_CACHE;
+    if (strcmp(s, "mem.available") == 0)
+        return MEM_AVAILABLE;
+    if (strcmp(s, "mem.swap.total") == 0)
+        return MEM_SWAP_TOTAL;
+    if (strcmp(s, "mem.swap.used") == 0)
+        return MEM_SWAP_USED;
+    if (strcmp(s, "mem.swap.free") == 0)
+        return MEM_SWAP_FREE;
+    if (strcmp(s, "mem.total") == 0)
+        return MEM_TOTAL;
+
     if (strcmp(s, "nvml.temp") == 0)
         return NVML_TEMP;
     if (strcmp(s, "nvml.power") == 0)
